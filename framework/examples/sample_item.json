@@ -1,0 +1,10 @@
+{
+  "id": "sample-001",
+  "meta": {"source": "hand-written example", "note": "no audio; demonstrates Content-only + honest Prosody discard"},
+  "turns": [
+    {"role": "user", "label": "User turn", "transcript": "I tried deep breathing and it didn't help. What else?"},
+    {"role": "agent", "label": "Agent response", "transcript": "I'm sorry it hasn't helped. Since deep breathing didn't work for you, let's try grounding: name five things you can see, four you can hear, and three you can touch."},
+    {"role": "user", "label": "User turn", "transcript": "Okay."},
+    {"role": "agent", "label": "Agent response", "transcript": "Mm-hmm, take your time."}
+  ]
+}
