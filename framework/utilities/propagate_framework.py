@@ -18,7 +18,25 @@ from __future__ import annotations
 import argparse
 import filecmp
 import shutil
+import sys
 from pathlib import Path
+
+# Shared house CLI look — themeable, revert with CLI_STYLE=plain (see its ADOPTING.md).
+# FAIL-OPEN: vendored clistyle lives in framework/ (this file is framework/utilities/…),
+# so put framework/ on the path and import it there; if it is missing S stays None and
+# callers fall back to plain output. Default theme = unchanged text, colour only on a TTY.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    import clistyle
+    S = clistyle.styler()
+except Exception:
+    S = None
+
+
+def _p(text, role):
+    """Colour `text` for `role`; identical text when there is no styler or colour is off."""
+    return S.paint(text, role) if S else text
+
 
 HOME = Path.home()
 DEFAULT_SRC = HOME / "Workspace/ai-training/ai_training_workspace/framework"
@@ -68,19 +86,19 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     src, dst = Path(a.src).expanduser(), Path(a.dst).expanduser()
     if not src.is_dir():
-        print(f"SRC not found: {src}"); return 2
+        print(_p("SRC not found:", "err") + f" {src}"); return 2
     new, changed, unchanged = plan(src, dst)
-    print(f"SRC: {src}\nDST: {dst}")
-    print(f"  new={len(new)} changed={len(changed)} unchanged={len(unchanged)}")
+    print(_p("SRC", "bold") + f": {src}\n" + _p("DST", "bold") + f": {dst}")
+    print("  " + _p(f"new={len(new)} changed={len(changed)} unchanged={len(unchanged)}", "accent"))
     for rel in new:
-        print(f"  + {rel}")
+        print("  " + _p("+", "ok") + f" {rel}")
     for rel in changed:
-        print(f"  ~ {rel}")
+        print("  " + _p("~", "warn") + f" {rel}")
     if not a.apply:
-        print("(dry-run — pass --apply to copy)")
+        print(_p("(dry-run — pass --apply to copy)", "dim"))
         return 0
     apply(src, dst, new + changed)
-    print(f"applied: {len(new) + len(changed)} file(s) copied")
+    print(_p("applied:", "ok") + f" {len(new) + len(changed)} file(s) copied")
     return 0
 
 

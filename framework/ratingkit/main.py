@@ -27,10 +27,28 @@ from ratingkit.core.scoring import get_scorer
 from ratingkit.core.store import Store
 from ratingkit.core.engine import Engine
 
+# Shared house CLI look — themeable, revert with CLI_STYLE=plain (see its ADOPTING.md).
+# FAIL-OPEN: if the vendored clistyle module is missing, S stays None and every caller
+# falls back to plain output, so the tool never breaks. Under the default theme the
+# rendered text is unchanged — the styler adds colour only (and only on a TTY).
+try:
+    import clistyle
+    S = clistyle.styler()
+except Exception:
+    S = None
+
+
+def _paint(text, role):
+    """Colour `text` for `role` via the shared styler. Returns the text unchanged when
+    there is no styler or colour is off (piped / NO_COLOR / TERM=dumb / CLI_STYLE=plain),
+    so the rendered text is identical to the historical output."""
+    return S.paint(text, role) if S else text
+
 
 def _choose(prompt, options, default=None):
     for i, o in enumerate(options, 1):
-        print(f"  {i}) {o}")
+        label = _paint(o, "bold") if i == 1 else o
+        print(f"  {_paint(str(i), 'accent')}) {label}")
     raw = input(f"{prompt}{f' [{default}]' if default else ''}: ").strip()
     if not raw and default is not None:
         return default
@@ -40,19 +58,19 @@ def _choose(prompt, options, default=None):
 
 
 def interactive() -> int:
-    print("ratingkit — interactive run\n")
+    print(_paint("ratingkit — interactive run", "accent") + "\n")
     rubrics = discover_rubrics()
     if not rubrics:
         print("No rubrics found under ratingkit/rubrics/.")
         return 1
-    print("Rubrics:")
+    print(_paint("Rubrics:", "accent"))
     rubric_name = _choose("Pick a rubric", rubrics, default=rubrics[0])
     items_path = input("Path to items JSON (file or dir): ").strip()
     if not items_path:
         print("No items path given.")
         return 1
-    print("Scorers: smoke (offline reference) | prompt (render prompts) | "
-          "screen (content + prosody defect-screen with human review queue)")
+    print(_paint("Scorers: smoke (offline reference) | prompt (render prompts) | "
+                 "screen (content + prosody defect-screen with human review queue)", "info"))
     scorer_name = _choose("Pick a scorer", ["smoke", "prompt", "screen"], default=settings.DEFAULT_SCORER)
     run_name = input("Run name [demo]: ").strip() or "demo"
     return _execute(rubric_name, items_path, scorer_name, run_name)
@@ -65,12 +83,12 @@ def _execute(rubric_name, items_path, scorer_name, run_name) -> int:
     store = Store(settings.RUNS_DIR / run_name)
     engine = Engine(rubric, default_registry(), scorer, store)
     report = engine.run(items)
-    print(f"\nRubric      : {rubric.name}")
-    print(f"Items       : {len(items)}")
-    print(f"Evaluated   : {report.evaluated}  (skipped already-done: {report.skipped_done})")
-    print(f"Discarded   : {report.discarded}")
-    print(f"Held (human): {report.held}  -> `--review {run_name}` to see the queue")
-    print(f"Results     : {store.results}")
+    print("\n" + _paint("Rubric      ", "bold") + f": {rubric.name}")
+    print(_paint("Items       ", "bold") + f": {len(items)}")
+    print(_paint("Evaluated   ", "bold") + f": {report.evaluated}  (skipped already-done: {report.skipped_done})")
+    print(_paint("Discarded   ", "bold") + f": {report.discarded}")
+    print(_paint("Held (human)", "bold") + f": {report.held}  -> `--review {run_name}` to see the queue")
+    print(_paint("Results     ", "bold") + f": {store.results}")
     return 0
 
 
@@ -81,9 +99,9 @@ def _review(run_name: str) -> int:
     if not reviews:
         print(f"No items reserved for human review in run {run_name!r}.")
         return 0
-    print(f"{len(reviews)} dimension(s) reserved for human review in run {run_name!r}:\n")
+    print(_paint(f"{len(reviews)} dimension(s) reserved for human review in run {run_name!r}:", "accent") + "\n")
     for r in reviews:
-        print(f"- {r['item_id']}#{r['turn_index']} [{r['dimension']}]")
+        print(f"- {r['item_id']}#{r['turn_index']} " + _paint(f"[{r['dimension']}]", "info"))
         print(f"    audio: {r.get('audio')}")
         scr = r.get("screen") or {}
         if scr.get("reasons"):
